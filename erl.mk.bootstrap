@@ -1,0 +1,7 @@
+# -*- mode: makefile -*-
+
+erl.mk: bootstrap
+	wget -O $@ https://raw.githubusercontent.com/AntonSizov/erl.mk/master/erl.mk
+
+.PHONY: bootstrap
+bootstrap: ;
