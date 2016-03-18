@@ -51,6 +51,12 @@ generate-rel:
 	./rebar generate
 	$(REWRITE_RELEASES)
 	$(CREATE_START_BOOT_FILE)
+ifneq (,$(wildcard rel/files/app.config))
+	cp rel/files/app.config rel/$(PROJECT_REPO)/etc
+endif
+ifneq (,$(wildcard rel/files/app.config.placeholder))
+	cp rel/files/app.config.placeholder rel/$(PROJECT_REPO)/etc
+endif
 
 rel: get-deps compile xref relclean test generate-rel
 
