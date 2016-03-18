@@ -2,7 +2,13 @@
 all: rel
 
 get-deps:
+	./rebar get-deps || true
+ifneq ($(findstring just,$(shell git remote -v)),)
+	rm -rf deps/lager deps/goldrush
+	grep -v '//github.com/basho/lager.git' deps/cuttlefish/rebar.config > deps/cuttlefish/rebar.config.new
+	mv deps/cuttlefish/rebar.config.new deps/cuttlefish/rebar.config
 	./rebar get-deps
+endif
 
 compile:
 	./rebar compile
@@ -41,10 +47,12 @@ export REWRITE_RELEASES_ESCRIPT
 print:
 	echo "$$REWRITE_RELEASES_ESCRIPT"
 
-rel: get-deps compile xref relclean test
+generate-rel:
 	./rebar generate
 	$(REWRITE_RELEASES)
 	$(CREATE_START_BOOT_FILE)
+
+rel: get-deps compile xref relclean test generate-rel
 
 relclean:
 	rm -rf rel/$(PROJECT_REPO)
