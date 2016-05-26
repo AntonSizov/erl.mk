@@ -64,3 +64,46 @@ relclean:
 	rm -rf rel/$(PROJECT_REPO)
 
 .PHONY: all get-deps compile clean console test xref print rel relclean
+
+## DIALYZER
+
+OTP_PLT=~/.otp.plt
+PRJ_PLT=local.plt
+
+SOLVER = --solver v2
+
+dialyzer_diff:
+	wget -O $@ https://raw.githubusercontent.com/AntonSizov/erl.mk/master/$@
+	chmod +x $@
+
+.PHONY: dialyzer_warnings
+dialyzer_warnings:
+	$(info Dialyze project...)
+# add '|| true' to ignore dialyzer return code
+	@(dialyzer $(SOLVER) -Wno_return -Wno_unused --plt $(PRJ_PLT) \
+	-r ebin -q > dialyzer_warnings || true)
+
+.dialyzerignore:
+	touch $@
+
+dialyze: .dialyzerignore dialyzer_warnings dialyzer_diff $(OTP_PLT) $(PRJ_PLT)
+	$(info Output found warnings)
+	@./dialyzer_diff dialyzer_warnings .dialyzerignore
+
+rm-project-plt:
+	$(info Cleanup project plt)
+	rm -f $(PRJ_PLT)
+
+APPS = erts \
+	kernel stdlib crypto mnesia sasl ssl eunit \
+	compiler tools syntax_tools asn1 public_key
+
+$(OTP_PLT):
+	$(info Build OTP PLT...)
+	dialyzer $(SOLVER) --build_plt --output_plt $@ --apps $(APPS)
+
+$(PRJ_PLT):
+# || true - to ignore dialyzer build plt warnings
+	$(info Build local PLT...)
+	@(dialyzer $(SOLVER) --add_to_plt --plt $(OTP_PLT) --output_plt $(PRJ_PLT) \
+	-r ./deps/*/ebin ebin || true)

@@ -1,0 +1,71 @@
+#!/usr/bin/env escript
+
+-export([main/1]).
+
+-define(error(__Format, __Args),
+    (fun(F, A) ->
+        io:format("Error(~p): " ++ F ++ "~n", [?LINE] ++ A),
+        halt(1)
+    end)(__Format, __Args)
+).
+-define(debug(Format, Args), io:format("Debug: " ++ Format ++ "~n", Args)).
+
+main([DialyzerWarnsFile, DialyzerIgnoreWarnsFile]) ->
+    case file:read_file(DialyzerWarnsFile) of
+        {ok, DialyzerWarnsFileBin} ->
+            GotWarns = binary:split(DialyzerWarnsFileBin, <<"\n">>, [global, trim]) -- [<<>>],
+            open_ignore_file(GotWarns, DialyzerIgnoreWarnsFile);
+        {error, Reason} ->
+            ?error("Can't open warnings file (~p)", [Reason])
+    end;
+main(_) ->
+    io:format("Usage: dialyzer_diff /path/to/dialyzer_warnings_file /path/to/dialyzer_ignore_warnings_file~n"),
+    halt(1).
+
+open_ignore_file(GotWarns, DialyzerIgnoreWarnsFile) ->
+    case file:read_file(DialyzerIgnoreWarnsFile) of
+        {ok, DialyzerIgnoreWarnsFileBin} ->
+            Ignores = binary:split(DialyzerIgnoreWarnsFileBin, <<"\n">>, [global, trim]) -- [<<>>],
+            compare(GotWarns, Ignores);
+        {error, Reason} ->
+            ?error("Can't open ignore file (~p)", [Reason])
+	end.
+
+compare(GotWarns, Ignores) ->
+    compare(GotWarns, Ignores, [], 0).
+compare([], _Ignores, ModuleNameAcc, HaltCode) ->
+    ModuleSummary = lists:sort(zip(ModuleNameAcc)),
+    case length(ModuleSummary) > 0 of
+        true -> io:format("~nSummary:~n");
+        _ -> ok
+    end,
+    lists:foreach(fun({ModuleName, Count}) -> io:format("~s -> ~p~n", [ModuleName, Count]) end, ModuleSummary),
+    WarnsNum =
+        lists:foldr(fun({_, Counter}, Acc) -> Counter + Acc end, 0, ModuleSummary),
+    case WarnsNum > 0 of
+        true -> io:format("~nAll: ~p~n", [WarnsNum]);
+        _ -> ok
+    end,
+    halt(HaltCode);
+compare([Warn | Other], Ignores, ModuleNameAcc, HaltCode) ->
+    case lists:member(Warn, Ignores) of
+        true -> %% ignore
+            compare(Other, Ignores, ModuleNameAcc, HaltCode);
+        false ->
+           {ok, ModuleName} = print_warning(Warn),
+            NewModuleNameAcc = [ModuleName | ModuleNameAcc],
+            compare(Other, Ignores, NewModuleNameAcc, 1)
+	end.
+
+zip(List) -> zip(List, dict:new()).
+zip([], Dict) ->
+    dict:to_list(Dict);
+zip([Elem | Tail], Dict) ->
+    zip(Tail, dict:update_counter(Elem, 1, Dict)).
+
+print_warning(FullWarn) ->
+    [ModuleName, WarnPart] = binary:split(FullWarn, <<":">>),
+    [LineNum, WarnMsg] = binary:split(WarnPart, <<": ">>),
+    HighLightedWarn = << <<"\e[31m">>/binary, ModuleName/binary, $:, LineNum/binary, <<"\e[39m">>/binary, ": ", WarnMsg/binary >>,
+    io:format("~s~n", [HighLightedWarn]),
+    {ok, ModuleName}.
