@@ -1,14 +1,26 @@
 
 all: rel
 
-get-deps:
-	./rebar get-deps || true
-ifneq ($(findstring just,$(shell git remote -v)),)
-	rm -rf deps/lager deps/goldrush
-	grep -v '//github.com/basho/lager.git' deps/cuttlefish/rebar.config > deps/cuttlefish/rebar.config.new
-	mv deps/cuttlefish/rebar.config.new deps/cuttlefish/rebar.config
+get-deps: priv/cuttlefish priv/erlang_vm.schema
 	./rebar get-deps
-endif
+
+cuttlefish.tar.gz:
+	wget https://github.com/basho/cuttlefish/archive/2.0.6.tar.gz --output-document=$@
+
+cuttlefish: cuttlefish.tar.gz
+	tar xzf $<
+	mv cuttlefish-2.0.6 $@
+
+cuttlefish/cuttlefish: cuttlefish
+	cd $<; make; cd ..
+
+priv/erlang_vm.schema: cuttlefish
+	mkdir -p priv
+	cp cuttlefish/priv/erlang_vm.schema $@
+
+priv/cuttlefish: cuttlefish/cuttlefish
+	mkdir -p priv
+	cp $< $@
 
 compile:
 	./rebar compile
