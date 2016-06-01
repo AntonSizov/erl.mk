@@ -51,7 +51,7 @@ define REWRITE_RELEASES
 endef
 
 define CREATE_START_BOOT_FILE
-TAG=$$(git describe); \
+TAG=$$(git describe --always); \
 cp "rel/$(PROJECT_REPO)/releases/$$TAG/$(PROJECT).boot" "rel/$(PROJECT_REPO)/releases/$$TAG/start.boot"
 endef
 
