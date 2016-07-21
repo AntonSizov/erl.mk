@@ -4,9 +4,15 @@ all: rel
 get-deps:
 	./rebar get-deps || true
 ifneq ($(findstring just,$(shell git remote -v)),)
-	rm -rf deps/lager deps/goldrush
-	grep -v '//github.com/basho/lager.git' deps/cuttlefish/rebar.config > deps/cuttlefish/rebar.config.new
-	mv deps/cuttlefish/rebar.config.new deps/cuttlefish/rebar.config
+	rm -rf deps/lager deps/goldrush deps/cuttlefish deps/neotoma deps/getopt
+# remove deps from bitcask rebar.config
+	grep -v 'github.com/basho/meck.git' deps/bitcask/rebar.config > deps/bitcask/rebar.config.new
+	grep -v 'github.com/basho/cuttlefish.git' deps/bitcask/rebar.config.new > deps/bitcask/rebar.config.new2
+	mv deps/bitcask/rebar.config.new2 deps/bitcask/rebar.config
+# remove deps from elelveldb rebar.config
+	grep -v 'github.com/basho/cuttlefish.git' deps/eleveldb/rebar.config > deps/eleveldb/rebar.config.new
+	mv deps/eleveldb/rebar.config.new deps/eleveldb/rebar.config
+# proceed
 	./rebar get-deps
 endif
 
